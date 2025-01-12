@@ -8,6 +8,7 @@ import argparse
 import pickle
 
 DEFAULT_LLM_BACKBONE = "o1-mini"
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 
 class LaboratoryWorkflow:
@@ -630,7 +631,7 @@ if __name__ == "__main__":
         raise Exception("args.papersolver_max_steps must be a valid integer!")
 
 
-    api_key = os.getenv('OPENAI_API_KEY') or args.api_key or "your-default-api-key"
+    api_key = os.getenv('OPENAI_API_KEY') or args.api_key or "sk-6c1223d9d7dd40419f8d4e03090c942d"
     if not api_key:
         raise ValueError("API key must be provided via --api-key or the OPENAI_API_KEY environment variable.")
 
@@ -649,17 +650,27 @@ if __name__ == "__main__":
         {"phases": ["plan formulation", "data preparation", "running experiments"],
          "note": "Please use gpt-4o-mini for your experiments."},
 
-        {"phases": ["running experiments"],
-         "note": f'Use the following code to inference gpt-4o-mini: \nfrom openai import OpenAI\nos.environ["OPENAI_API_KEY"] = "{api_key}"\nclient = OpenAI()\ncompletion = client.chat.completions.create(\nmodel="gpt-4o-mini-2024-07-18", messages=messages)\nanswer = completion.choices[0].message.content\n'},
+        # {"phases": ["running experiments"],
+        #  "note": f'Use the following code to inference gpt-4o-mini: \nfrom openai import OpenAI\nos.environ["OPENAI_API_KEY"] = "{api_key}"\nclient = OpenAI()\ncompletion = client.chat.completions.create(\nmodel="gpt-4o-mini-2024-07-18", messages=messages)\nanswer = completion.choices[0].message.content\n'},
+
+        # {"phases": ["running experiments"],
+        #  "note": f"You have access to only gpt-4o-mini using the OpenAI API, please use the following key {api_key} but do not use too many inferences. Do not use openai.ChatCompletion.create or any openai==0.28 commands. Instead use the provided inference code."},
 
         {"phases": ["running experiments"],
-         "note": f"You have access to only gpt-4o-mini using the OpenAI API, please use the following key {api_key} but do not use too many inferences. Do not use openai.ChatCompletion.create or any openai==0.28 commands. Instead use the provided inference code."},
+         "note": f'Use the following code to inference deepseek-chat: \nfrom openai import OpenAI\nos.environ["OPENAI_API_KEY"] = "{api_key}"\nclient = OpenAI(base_url="https://api.deepseek.com")\ncompletion = client.chat.completions.create(\nmodel="deepseek-chat", messages=messages)\nanswer = completion.choices[0].message.content\n'},
+
+        {"phases": ["running experiments"],
+         "note": f"You have access to only deepseek-chat using the OpenAI API, please use the following key {api_key} but do not use too many inferences. Do not use openai.ChatCompletion.create or any openai==0.28 commands. Instead use the provided inference code."},
+
 
         {"phases": ["running experiments"],
          "note": "I would recommend using a small dataset (approximately only 100 data points) to run experiments in order to save time. Do not use much more than this unless you have to or are running the final tests."},
 
+        # {"phases": ["data preparation", "running experiments"],
+        #  "note": "You are running on a MacBook laptop. You can use 'mps' with PyTorch"},
+
         {"phases": ["data preparation", "running experiments"],
-         "note": "You are running on a MacBook laptop. You can use 'mps' with PyTorch"},
+         "note": "You are running on a Linux Ubuntu laptop. You can use 'cuda' with PyTorch"},
 
         {"phases": ["data preparation", "running experiments"],
          "note": "Generate figures with very colorful and artistic design."},

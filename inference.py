@@ -1,7 +1,9 @@
+from pyexpat import model
 import time, tiktoken
 from openai import OpenAI
 import openai
 import os, anthropic, json
+import transformers
 
 TOKENS_IN = dict()
 TOKENS_OUT = dict()
@@ -15,6 +17,7 @@ def curr_cost_est():
         "o1-preview": 15.00 / 1000000,
         "o1-mini": 3.00 / 1000000,
         "claude-3-5-sonnet": 3.00 / 1000000,
+        "deepseek-chat": 1.00 / 1000000,
     }
     costmap_out = {
         "gpt-4o": 10.00/ 1000000,
@@ -22,6 +25,7 @@ def curr_cost_est():
         "o1-preview": 60.00 / 1000000,
         "o1-mini": 12.00 / 1000000,
         "claude-3-5-sonnet": 12.00 / 1000000,
+        "deepseek-chat": 2.00 / 1000000,
     }
     return sum([costmap_in[_]*TOKENS_IN[_] for _ in TOKENS_IN]) + sum([costmap_out[_]*TOKENS_OUT[_] for _ in TOKENS_OUT])
 
@@ -124,17 +128,51 @@ def query_model(model_str, prompt, system_prompt, openai_api_key=None, anthropic
                     completion = client.chat.completions.create(
                         model="o1-preview", messages=messages)
                 answer = completion.choices[0].message.content
+            elif model_str == "deepseek-chat":
+                model_str = "deepseek-chat"
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}]
+                if version == "0.28":
+                    if temp is None:
+                        completion = openai.ChatCompletion.create(
+                            model=f"{model_str}",  # engine = "deployment_name".
+                            messages=messages, max_tokens=8192
+                        )
+                    else:
+                        completion = openai.ChatCompletion.create(
+                            model=f"{model_str}",  # engine = "deployment_name".
+                            messages=messages, temperature=temp, max_tokens=8192
+                        )
+                else:
+                    client = OpenAI(base_url="https://api.deepseek.com")
+                    if temp is None:
+                        completion = client.chat.completions.create(
+                            model="deepseek-chat", messages=messages, max_tokens=8192)
+                    else:
+                        completion = client.chat.completions.create(
+                            model="deepseek-chat", messages=messages, temperature=temp, max_tokens=8192)
+                answer = completion.choices[0].message.content
 
             if model_str in ["o1-preview", "o1-mini", "claude-3.5-sonnet"]:
                 encoding = tiktoken.encoding_for_model("gpt-4o")
-            else: encoding = tiktoken.encoding_for_model(model_str)
+            elif model_str in ["deepseek-chat"]:
+                chat_tokenizer_dir = "./deepseek_v2_tokenizer"
+                encoding = transformers.AutoTokenizer.from_pretrained(
+                    chat_tokenizer_dir, trust_remote_code=True
+                )
+            else:
+                encoding = tiktoken.encoding_for_model(model_str)
             if model_str not in TOKENS_IN:
                 TOKENS_IN[model_str] = 0
                 TOKENS_OUT[model_str] = 0
             TOKENS_IN[model_str] += len(encoding.encode(system_prompt + prompt))
             TOKENS_OUT[model_str] += len(encoding.encode(answer))
             if print_cost:
-                print(f"Current experiment cost = ${curr_cost_est()}, ** Approximate values, may not reflect true cost")
+                if model_str in ["deepseek-chat"]:
+                    print(f"Current experiment cost = ￥{curr_cost_est()}, ** Approximate values, may not reflect true cost")
+                else:
+                    print(f"Current experiment cost = ${curr_cost_est()}, ** Approximate values, may not reflect true cost")
             return answer
         except Exception as e:
             print("Inference Exception:", e)
